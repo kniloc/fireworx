@@ -16,8 +16,8 @@ func NewPalette() Palette {
 
 	for hue, color := range hues {
 		r := uint8(color >> 16)
-		b := uint8(color >> 8)
-		g := uint8(color)
+		g := uint8(color >> 8)
+		b := uint8(color)
 		rgb := [3]float32{float32(r), float32(g), float32(b)}
 
 		for shade := range 16 {
@@ -36,7 +36,7 @@ func NewPalette() Palette {
 			}
 
 			for c := range 3 {
-				mixed := rgb[c]*(1-whiteMix) + 255.0 + whiteMix
+				mixed := rgb[c]*(1-whiteMix) + 255.0*whiteMix
 				v := mixed * falloff
 				if v > 255.0 {
 					v = 255.0
