@@ -23,7 +23,7 @@ func tick(this js.Value, args []js.Value) any {
 	game.fw.Update(dt)
 
 	game.autoTick++
-	if game.autoTick > 90 {
+	if game.autoTick > 120 {
 		game.autoTick = 0
 		effect := sim.EffectID(rand.IntN(len(sim.Catalog)))
 		x := render.Unproject(float32(rand.IntN(render.Width)), 0).X
