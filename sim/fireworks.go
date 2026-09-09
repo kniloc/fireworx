@@ -29,20 +29,6 @@ func (f *Fireworks) stage(effect EffectID, stage uint8) *Stage {
 	return &f.lib[effect].Stages[stage]
 }
 
-func (f *Fireworks) Burst(effect EffectID, pos vm.Vec3) {
-	lift := f.lib[effect].LiftSpeed.Sample(f.rng)
-	parent := Star{
-		Effect: effect,
-		Pos:    pos,
-		Seed:   f.rng.Uint64(),
-		Vel:    vm.New(0, lift*0.3, 0),
-	}
-
-	for _, b := range f.stage(effect, 0).Terminal {
-		f.fireBurst(b, &parent)
-	}
-}
-
 func (f *Fireworks) LaunchFromGround(effect EffectID, x float32) {
 	up := f.lib[effect].LiftSpeed.Sample(f.rng)
 	f.Launch(effect, vm.New(x, 0, 0), vm.New(0, up, 0))
