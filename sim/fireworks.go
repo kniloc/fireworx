@@ -2,6 +2,12 @@ package sim
 
 import (
 	vm "fireworx/vec"
+	"math"
+)
+
+var (
+	tiltRange = Range{Min: -0.1, Max: 0.1}
+	leanRange = Range{Min: -5.0, Max: 5.0}
 )
 
 type Fireworks struct {
@@ -31,7 +37,13 @@ func (f *Fireworks) stage(effect EffectID, stage uint8) *Stage {
 
 func (f *Fireworks) LaunchFromGround(effect EffectID, x float32) {
 	up := f.lib[effect].LiftSpeed.Sample(f.rng)
-	f.Launch(effect, vm.New(x, 0, 0), vm.New(0, up, 0))
+	tilt := tiltRange.Sample(f.rng)
+	lean := leanRange.Sample(f.rng)
+
+	vx := up * float32(math.Sin(float64(tilt)))
+	vy := up * float32(math.Cos(float64(tilt)))
+
+	f.Launch(effect, vm.New(x+lean, 0, 0), vm.New(vx, vy, 0))
 }
 
 func (f *Fireworks) Launch(effect EffectID, pos, vel vm.Vec3) {
