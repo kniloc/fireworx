@@ -23,7 +23,7 @@ var game *Game
 
 const paintIntervalTicks = 6
 
-func tick(this js.Value, args []js.Value) any {
+func tick(_ js.Value, args []js.Value) any {
 	const dt = 1.0 / 60.0
 	game.fw.Update(dt)
 
@@ -50,7 +50,7 @@ func tick(this js.Value, args []js.Value) any {
 	return nil
 }
 
-func pointerDown(this js.Value, args []js.Value) any {
+func pointerDown(_ js.Value, args []js.Value) any {
 	x := float32(args[0].Float())
 	game.dragging = true
 	game.dragX = x
@@ -58,7 +58,7 @@ func pointerDown(this js.Value, args []js.Value) any {
 	return nil
 }
 
-func pointerMove(this js.Value, args []js.Value) any {
+func pointerMove(_ js.Value, args []js.Value) any {
 	if !game.dragging {
 		return nil
 	}
@@ -66,7 +66,7 @@ func pointerMove(this js.Value, args []js.Value) any {
 	return nil
 }
 
-func pointerUp(this js.Value, args []js.Value) any {
+func pointerUp(_ js.Value, _ []js.Value) any {
 	game.dragging = false
 	return nil
 }
