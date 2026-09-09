@@ -90,16 +90,6 @@ func saturatingAdd(a, b uint8) uint8 {
 }
 
 func (r *Renderer) drawSkyline(frame []byte) {
-	const groundStrip = 6
-	ground := Height - groundStrip
-
-	// ground
-	for y := ground; y < Height; y++ {
-		for x := range Width {
-			setRGB(frame, (y*Width+x)*4, 8, 9, 22)
-		}
-	}
-
 	// Per-pixel skyline height, built by stamping buildings left-to-right.
 	profile := [Width]int{}
 
@@ -137,8 +127,8 @@ func (r *Renderer) drawSkyline(frame []byte) {
 
 	// Draw silhouette from profile
 	for x := range Width {
-		top := max(ground-profile[x], 0)
-		for y := top; y < ground; y++ {
+		top := max(Height-profile[x], 0)
+		for y := top; y < Height; y++ {
 			setRGB(frame, (y*Width+x)*4, 20, 22, 46)
 		}
 	}
@@ -150,8 +140,8 @@ func (r *Renderer) drawSkyline(frame []byte) {
 			break
 		}
 		xEnd := min(x+b.w, Width)
-		top := max(ground-b.h, 0)
-		for wy := top + 4; wy+3 < ground-3; wy += 7 {
+		top := max(Height-b.h, 0)
+		for wy := top + 4; wy+3 < Height-3; wy += 7 {
 			for wx := x + 3; wx+2 < xEnd-2; wx += 6 {
 				if (wx/6+wy/7)%4 != 0 {
 					for dy := range 3 {
