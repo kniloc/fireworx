@@ -4,13 +4,15 @@ A Go port of [asrael's fireworks-rs](https://github.com/asrael/fireworks-rs), a 
 
 ## Overview
 
-fireworx simulates fireworks physics and renders them to an RGBA pixel buffer, which a host HTML page draws to a canvas. Fireworks launch automatically every 90 frames and also respond to clicks, bursting at wherever you click on screen.
+fireworx simulates fireworks physics and renders them to an RGBA pixel buffer, which a host HTML page draws to a canvas. Fireworks launch automatically about every two seconds and also respond to pointer presses and drags, bursting wherever you click or paint across the sky.
 
 The codebase is organized into three packages:
 
-- **`sim`**: physics simulation: particle lifecycle, multi-stage effects, and a catalog of firework types
-- **`render`**: rasterizer that draws the simulation state into a flat byte buffer
-- **`vec`**: 2D vector math used by the other packages
+- **`sim`**: physics simulation: particle lifecycle, multi-stage effects, and a catalog of 13 firework types (Brocade, Chrysanthemum, Comet, Crossette, Dragon's Eggs, Fish, Palm, Peony, Pistil, Ring, Strobe, Tourbillon, Willow)
+- **`render`**: rasterizer that draws the simulation state into a flat byte buffer, including a procedurally generated city skyline
+- **`vec`**: 3D vector math used by the other packages
+
+A working browser demo lives in [`example/`](example/), including the compiled WASM binary and JS glue code.
 
 ## Requirements
 
@@ -31,9 +33,11 @@ You'll also need the Go WebAssembly runtime shim in your HTML directory:
 cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
 ```
 
+See [`example/`](example/) for a complete reference setup (`index.html`, `scripts/go.js`, `scripts/fireworx.css`, and a prebuilt `fireworx.wasm`).
+
 ## Usage
 
-In your HTML, load the WASM runtime and the compiled binary, then drive the simulation by calling the two exported functions each frame:
+In your HTML, load the WASM runtime and the compiled binary, then drive the simulation by calling the exported functions each frame:
 
 ```html
 <script src="wasm_exec.js"></script>
@@ -46,27 +50,47 @@ In your HTML, load the WASM runtime and the compiled binary, then drive the simu
 
 **Exported JS functions:**
 
-- `fireworksTick(frameBuffer)`: advance the simulation by one frame (1/60 s) and render into `frameBuffer`, a `Uint8Array` of size `width × height × 4` (RGBA)
-- `fireworksClick(x, y)`: burst a random firework effect at screen coordinates `(x, y)`
+- `fireworksTick(frameBuffer)`: advance the simulation by one frame (1/60 s) and render into `frameBuffer`, a `Uint8Array`/`Uint8ClampedArray` of size `width × height × 4` (RGBA)
+- `fireworksPointerDown(x, y)`: begin a launch-on-press-and-drag interaction at canvas coordinates `(x, y)`
+- `fireworksPointerMove(x, y)`: update the drag position while the pointer is held down; fireworks launch periodically along the drag path
+- `fireworksPointerUp()`: end the drag interaction
+
+The canvas is `960 × 640` pixels by default.
 
 A minimal render loop:
 
 ```js
 const canvas = document.getElementById("canvas");
+canvas.width = 960;
+canvas.height = 640;
 const ctx = canvas.getContext("2d");
-const buf = new Uint8Array(canvas.width * canvas.height * 4);
+const imageData = ctx.createImageData(canvas.width, canvas.height);
+const buf = new Uint8ClampedArray(canvas.width * canvas.height * 4);
 
 function frame() {
   fireworksTick(buf);
-  const imageData = new ImageData(new Uint8ClampedArray(buf.buffer), canvas.width, canvas.height);
+  imageData.data.set(buf);
   ctx.putImageData(imageData, 0, 0);
   requestAnimationFrame(frame);
 }
 
-canvas.addEventListener("click", e => {
+function canvasCoords(e) {
   const rect = canvas.getBoundingClientRect();
-  fireworksClick(e.clientX - rect.left, e.clientY - rect.top);
+  return [e.clientX - rect.left, e.clientY - rect.top];
+}
+
+canvas.addEventListener("pointerdown", e => {
+  const [x, y] = canvasCoords(e);
+  fireworksPointerDown(x, y);
 });
+
+canvas.addEventListener("pointermove", e => {
+  const [x, y] = canvasCoords(e);
+  fireworksPointerMove(x, y);
+});
+
+window.addEventListener("pointerup", () => fireworksPointerUp());
+window.addEventListener("pointercancel", () => fireworksPointerUp());
 
 requestAnimationFrame(frame);
 ```
@@ -78,3 +102,4 @@ Based on [fireworks-rs](https://github.com/asrael/fireworks-rs) by [asrael](http
 ## License
 
 MIT. See [LICENSE](LICENSE) for details.
+</content>
