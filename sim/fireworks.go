@@ -11,13 +11,15 @@ var (
 )
 
 type Fireworks struct {
-	frame   uint64
-	lib     []Effect
-	pending []Star
-	rng     *Rand
-	sparks  []Spark
-	stars   []Star
-	World   World
+	frame    uint64
+	lib      []Effect
+	pending  []Star
+	rng      *Rand
+	sparks   []Spark
+	stars    []Star
+	World    World
+	OnLaunch func(pos vm.Vec3, effect EffectID, duration float32)
+	OnBurst  func(pos vm.Vec3, effect EffectID, count uint16)
 }
 
 func NewFireWorks(lib []Effect, w World, seed uint64) *Fireworks {
@@ -50,6 +52,7 @@ func (f *Fireworks) Launch(effect EffectID, pos, vel vm.Vec3) {
 	stage := f.stage(effect, 0)
 	life := stage.Life.Sample(f.rng)
 	seed := f.rng.Uint64()
+
 	f.pushStar(Star{
 		Effect: effect,
 		Life:   life,
@@ -57,6 +60,10 @@ func (f *Fireworks) Launch(effect EffectID, pos, vel vm.Vec3) {
 		Seed:   seed,
 		Vel:    vel,
 	})
+
+	if f.OnLaunch != nil {
+		f.OnLaunch(pos, effect, life)
+	}
 }
 
 func (f *Fireworks) Update(dt float32) {
@@ -125,6 +132,10 @@ func (f *Fireworks) fireBurst(b Burst, parent *Star) {
 	basis := BasisFromAxis(axis)
 	count := rng.IntRange(b.Count[0], b.Count[1])
 	childStage := f.stage(b.Child.Effect, b.Child.Stage)
+
+	if f.OnBurst != nil {
+		f.OnBurst(parent.Pos, parent.Effect, count)
+	}
 
 	for index := range count {
 		ctx := EmitCtx{Count: count, Index: index}

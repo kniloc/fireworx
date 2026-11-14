@@ -3,8 +3,10 @@
 package main
 
 import (
+	"fireworx/audio"
 	"fireworx/render"
 	"fireworx/sim"
+	vm "fireworx/vec"
 	"math/rand/v2"
 	"syscall/js"
 )
@@ -51,6 +53,7 @@ func tick(_ js.Value, args []js.Value) any {
 }
 
 func pointerDown(_ js.Value, args []js.Value) any {
+	audio.Init()
 	x := float32(args[0].Float())
 	game.dragging = true
 	game.dragX = x
@@ -73,8 +76,16 @@ func pointerUp(_ js.Value, _ []js.Value) any {
 
 func main() {
 	world := sim.DefaultWorld()
+	fw := sim.NewFireWorks(sim.Catalog, world, 42)
+	fw.OnLaunch = func(_ vm.Vec3, _ sim.EffectID, duration float32) {
+		audio.PlayWhistle(duration)
+	}
+	fw.OnBurst = func(_ vm.Vec3, _ sim.EffectID, count uint16) {
+		audio.PlayBoom(audio.IntensityFromCount(count))
+	}
+
 	game = &Game{
-		fw:       sim.NewFireWorks(sim.Catalog, world, 42),
+		fw:       fw,
 		renderer: render.New(),
 		frame:    make([]byte, render.Width*render.Height*4),
 	}
