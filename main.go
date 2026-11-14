@@ -74,11 +74,16 @@ func pointerUp(_ js.Value, _ []js.Value) any {
 	return nil
 }
 
+func toggleAudio(_ js.Value, args []js.Value) any {
+	audio.ToggleAudio(args[0].Bool())
+	return nil
+}
+
 func main() {
 	world := sim.DefaultWorld()
 	fw := sim.NewFireWorks(sim.Catalog, world, 42)
 	fw.OnLaunch = func(_ vm.Vec3, _ sim.EffectID, duration float32) {
-		audio.PlayWhistle(duration)
+		audio.PlayLaunchNoise(duration)
 	}
 	fw.OnBurst = func(_ vm.Vec3, _ sim.EffectID, count uint16) {
 		audio.PlayBoom(audio.IntensityFromCount(count))
@@ -94,5 +99,6 @@ func main() {
 	js.Global().Set("fireworksPointerDown", js.FuncOf(pointerDown))
 	js.Global().Set("fireworksPointerMove", js.FuncOf(pointerMove))
 	js.Global().Set("fireworksPointerUp", js.FuncOf(pointerUp))
+	js.Global().Set("toggleAudio", js.FuncOf(toggleAudio))
 	select {}
 }

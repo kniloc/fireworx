@@ -9,9 +9,28 @@ import (
 )
 
 var (
-	ctx   js.Value
-	ready bool
+	ctx        js.Value
+	masterGain js.Value
+	ready      bool
+	muted      bool
 )
+
+func ToggleAudio(m bool) {
+	muted = m
+
+	if !ready {
+		return
+	}
+
+	now := ctx.Get("currentTime").Float()
+	gain := masterGain.Get("gain")
+
+	if m {
+		gain.Call("linearRampToValueAtTime", 0.0001, now+0.01)
+	} else {
+		gain.Call("linearRampToValueAtTime", 1, now+0.01)
+	}
+}
 
 func Init() {
 	if ready {
@@ -28,11 +47,16 @@ func Init() {
 	}
 
 	ctx = audioContextClass.New()
+
+	masterGain = ctx.Call("createGain")
+	masterGain.Get("gain").Set("value", 1)
+	masterGain.Call("connect", ctx.Get("destination"))
+
 	ready = true
 }
 
 func PlayBoom(intensity float32) {
-	if !ready {
+	if !ready || muted {
 		return
 	}
 
@@ -69,45 +93,34 @@ func PlayBoom(intensity float32) {
 
 	src.Call("connect", filter)
 	filter.Call("connect", gain)
-	gain.Call("connect", ctx.Get("destination"))
+	gain.Call("connect", masterGain)
 	src.Call("start", now)
 }
 
-func PlayWhistle(duration float32) {
-	if !ready || duration <= 0 {
+func PlayLaunchNoise(duration float32) {
+	if !ready || muted || duration <= 0 {
 		return
 	}
 
 	now := ctx.Get("currentTime").Float()
 	dur := float64(duration)
+	dest := masterGain
 
-	osc1 := ctx.Call("createOscillator")
-	osc1.Set("type", "sine")
-	f1 := osc1.Get("frequency")
-	f1.Call("setValueAtTime", 900, now)
-	f1.Call("linearRampToValueAtTime", 1500, now+dur*0.85)
+	thump := ctx.Call("createOscillator")
+	thump.Set("type", "sine")
+	tf := thump.Get("frequency")
+	tf.Call("setValueAtTime", 90, now)
+	tf.Call("exponentialRampToValueAtTime", 40, now+0.12)
 
-	osc2 := ctx.Call("createOscillator")
-	osc2.Set("type", "sine")
-	f2 := osc2.Get("frequency")
-	f2.Call("setValueAtTime", 915, now) // slight dissonance
-	f2.Call("linearRampToValueAtTime", 1520, now+dur*0.85)
+	thumpGain := ctx.Call("createGain")
+	thg := thumpGain.Get("gain")
+	thg.Call("setValueAtTime", 0.4, now)
+	thg.Call("exponentialRampToValueAtTime", 0.0001, now+0.15)
 
-	wobble := ctx.Call("createOscillator")
-	wobble.Set("type", "sine")
-	wobble.Get("frequency").Call("setValueAtTime", 9, now)
-	wobbleGain := ctx.Call("createGain")
-	wobbleGain.Get("gain").Call("setValueAtTime", 15, now) // ± 15Hz flutter
-	wobble.Call("connect", wobbleGain)
-	wobbleGain.Call("connect", f1)
-	wobbleGain.Call("connect", f2)
-
-	toneGain := ctx.Call("createGain")
-	tg := toneGain.Get("gain")
-	tg.Call("setValueAtTime", 0.0001, now)
-	tg.Call("linearRampToValueAtTime", 0.12, now+0.08)
-	tg.Call("setValueAtTime", 0.12, now+dur*0.85)
-	tg.Call("linearRampToValueAtTime", 0.0001, now+dur)
+	thump.Call("connect", thumpGain)
+	thumpGain.Call("connect", dest)
+	thump.Call("start", now)
+	thump.Call("stop", now+0.17)
 
 	noiseFrames := int(44100 * dur)
 	noiseBuf := ctx.Call("createBuffer", 1, noiseFrames, 44100)
@@ -118,36 +131,23 @@ func PlayWhistle(duration float32) {
 	noiseSrc := ctx.Call("createBufferSource")
 	noiseSrc.Set("buffer", noiseBuf)
 
-	noiseFilter := ctx.Call("createBiquadFilter")
-	noiseFilter.Set("type", "bandpass")
-	nf := noiseFilter.Get("frequency")
-	nf.Call("setValueAtTime", 1200, now)
-	nf.Call("linearRampToValueAtTime", 2000, now+dur*0.85)
-	noiseFilter.Get("Q").Call("setValueAtTime", 1.2, now)
+	hissFilter := ctx.Call("createBiquadFilter")
+	hissFilter.Set("type", "bandpass")
+	hf := hissFilter.Get("frequency")
+	hf.Call("setValueAtTime", 400, now)
+	hf.Call("exponentialRampToValueAtTime", 2500, now+dur*0.85)
+	hissFilter.Get("Q").Call("setValueAtTime", 0.8, now)
 
-	noiseGain := ctx.Call("createGain")
-	ng := noiseGain.Get("gain")
-	ng.Call("setValueAtTime", 0.0001, now)
-	ng.Call("linearRampToValueAtTime", 0.05, now+0.08)
-	ng.Call("setValueAtTime", 0.05, now+dur*0.85)
-	ng.Call("linearRampToValueAtTime", 0.0001, now+dur)
+	hissGain := ctx.Call("createGain")
+	hg := hissGain.Get("gain")
+	hg.Call("setValueAtTime", 0.0001, now)
+	hg.Call("linearRampToValueAtTime", 0.08, now+dur*0.7)
+	hg.Call("linearRampToValueAtTime", 0.0001, now+dur)
 
-	osc1.Call("connect", toneGain)
-	osc2.Call("connect", toneGain)
-	noiseSrc.Call("connect", noiseFilter)
-	noiseFilter.Call("connect", noiseGain)
-
-	toneGain.Call("connect", ctx.Get("destination"))
-	noiseGain.Call("connect", ctx.Get("destination"))
-
-	osc1.Call("start", now)
-	osc2.Call("start", now)
-	wobble.Call("start", now)
+	noiseSrc.Call("connect", hissFilter)
+	hissFilter.Call("connect", hissGain)
+	hissGain.Call("connect", dest)
 	noiseSrc.Call("start", now)
-
-	osc1.Call("stop", now+dur+0.02)
-	osc2.Call("stop", now+dur+0.02)
-	wobble.Call("stop", now+dur+0.02)
 }
 
 func IntensityFromCount(count uint16) float32 {
